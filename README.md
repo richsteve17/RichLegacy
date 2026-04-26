@@ -19,7 +19,41 @@ project/
   ready to grow (onset detection, tempo, beat tracking, pattern matching,
   kit recommendation, etc.).
 
-## Quick start
+## Quick start (one command)
+
+The fastest way to get going on a Mac:
+
+```bash
+./startup.sh
+```
+
+That single script will:
+
+1. Verify `python3`, `node`, and `npm` are installed.
+2. Create `backend/.venv` and install Python deps if missing.
+3. Run `npm install` in `frontend/` if missing.
+4. Start the FastAPI backend on `http://localhost:8000`.
+5. Start the Vite frontend on `http://localhost:5173`.
+6. Print your Mac's LAN IP so you can open the app on your iPhone
+   (same Wi-Fi).
+
+Press **Ctrl-C** once to stop both servers cleanly.
+
+Useful flags:
+
+```bash
+./startup.sh --reset   # wipe .venv + node_modules and reinstall, then run
+./startup.sh --help    # show usage
+```
+
+The first run installs everything (≈1–2 minutes). Subsequent runs are
+near-instant.
+
+---
+
+## Manual quick start
+
+If you'd rather run each piece yourself:
 
 ### 1. Backend
 
