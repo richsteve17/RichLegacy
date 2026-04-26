@@ -34,7 +34,7 @@ export default function App() {
               analysis={analysis}
               onAnalyzed={setAnalysis}
             />
-            {analysis && <PracticePanel analysis={analysis} />}
+            {analysis && <PracticePanel upload={upload} analysis={analysis} />}
           </>
         )}
       </main>
