@@ -31,6 +31,18 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+> **macOS note** — the backend uses `numpy`, `scipy`, `soundfile`, and
+> `audioread` only. All ship pre-built wheels for every supported Python
+> on Intel and Apple Silicon, so no LLVM / Rust / Xcode toolchain is
+> needed. (Earlier versions used `librosa`, which pulled in
+> `numba` → `llvmlite` and required compilation. That's gone.)
+>
+> **Audio format support** out of the box:
+> - WAV / FLAC / OGG / AIFF — handled by `soundfile` (libsndfile)
+> - MP3 / M4A / AAC — handled by `audioread` via macOS CoreAudio
+>
+> Nothing extra to install for any of those formats.
+
 ### 2. Frontend
 
 ```bash
