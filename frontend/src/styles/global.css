@@ -458,6 +458,34 @@ body,
 
 /* ===== Hardware LED feedback toolbar ===== */
 
+/* ===== Live Drum Audio Sampler toolbar ===== */
+
+.sampler-control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: rgba(45, 212, 191, 0.08);
+  border: 1px solid rgba(45, 212, 191, 0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 10px 0 6px;
+  font-size: 0.88rem;
+}
+
+.sampler-volume-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sampler-volume-slider input[type='range'] {
+  width: 100px;
+  accent-color: #2dd4bf;
+  cursor: pointer;
+}
+
 .led-feedback-bar {
   display: flex;
   align-items: center;
@@ -467,9 +495,10 @@ body,
   border: 1px solid rgba(255, 209, 102, 0.25);
   border-radius: 8px;
   padding: 8px 12px;
-  margin: 10px 0 16px;
+  margin: 6px 0 16px;
   font-size: 0.88rem;
 }
+
 
 .checkbox-label {
   display: inline-flex;

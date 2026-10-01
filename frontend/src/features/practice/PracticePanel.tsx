@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fileUrl } from '../../lib/api';
+import { drumSampler } from '../../lib/audio/drumSampler';
 import { loadMapping, noteToPad, type PadMapping } from '../../lib/midi/padMapping';
 import {
   clearAllReloopLeds,
@@ -37,6 +38,13 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
   const [mode, setMode] = useState<PatternMode>('fullGroove');
   const [ledFeedback, setLedFeedback] = useState(true);
   const [testingLeds, setTestingLeds] = useState(false);
+  const [drumAudioEnabled, setDrumAudioEnabled] = useState(true);
+  const [drumVolume, setDrumVolume] = useState(0.85);
+
+  // Preload authentic 16-pad drum kit audio samples
+  useEffect(() => {
+    drumSampler.preloadKit();
+  }, []);
 
   // Derived: scheduled hit list. Memoized; we copy into a mutable ref
   // so MIDI/rAF handlers can update statuses without triggering React updates.
@@ -102,6 +110,11 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
       const pad = noteToPad(mapping, e.channel, e.note);
       if (pad === null) return;
 
+      // Play authentic punchy drum sample immediately with zero delay
+      if (drumAudioEnabled) {
+        drumSampler.playPad(pad, e.velocity);
+      }
+
       const audio = audioRef.current;
       const t = audio?.currentTime ?? 0;
 
@@ -130,7 +143,7 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
       setTick((tk) => tk + 1);
     });
     return off;
-  }, [midi, mapping, ledFeedback]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [midi, mapping, ledFeedback, drumAudioEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ----- audio sync loop -----------------------------------------------
   useEffect(() => {
@@ -187,6 +200,13 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
         }
       }
     }, 140);
+  }
+
+  function handlePadTap(pad: number) {
+    if (drumAudioEnabled) {
+      drumSampler.playPad(pad, 110);
+    }
+    flashPad(pad, 'tap');
   }
 
   function reset() {
@@ -291,6 +311,41 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
         </label>
       </div>
 
+      <div className="sampler-control-bar">
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={drumAudioEnabled}
+            onChange={(e) => {
+              setDrumAudioEnabled(e.target.checked);
+              drumSampler.setMuted(!e.target.checked);
+            }}
+          />
+          <span>
+            🔊 <strong>Live Drum Audio</strong> (triggers authentic punchy drum samples on every pad hit)
+          </span>
+        </label>
+
+        <div className="sampler-volume-slider">
+          <span>Drum Vol:</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={drumVolume}
+            onChange={(e) => {
+              const val = parseFloat(e.target.value);
+              setDrumVolume(val);
+              drumSampler.setVolume(val);
+            }}
+          />
+          <span className="muted" style={{ minWidth: 32, fontSize: '0.8rem' }}>
+            {Math.round(drumVolume * 100)}%
+          </span>
+        </div>
+      </div>
+
       {mapping.controller.startsWith('reloop') && (
         <div className="led-feedback-bar">
           <label className="checkbox-label">
@@ -336,7 +391,7 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
         activePad={activePad}
         nextPads={playing ? nextPads : []}
         feedback={feedback}
-        onPadTap={(pad) => flashPad(pad, 'tap')}
+        onPadTap={handlePadTap}
       />
 
       <div className="grid">
