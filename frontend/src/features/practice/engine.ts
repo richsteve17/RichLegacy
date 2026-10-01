@@ -56,7 +56,7 @@ export function generatePattern(
   const kickPad = getPadForDrum(mapping, 'kick') ?? 0;
   const snarePad = getPadForDrum(mapping, 'snare') ?? 1;
   const hatPad = getPadForDrum(mapping, 'hihat') ?? (mapping.padCount === 16 ? 8 : 2);
-  const crashPad = getPadForDrum(mapping, 'crash') ?? (mapping.padCount === 16 ? 10 : 3);
+  const crashPad = getPadForDrum(mapping, 'crash') ?? (mapping.padCount === 16 ? 11 : 3);
 
   if (analysis.drum_hits && analysis.drum_hits.length > 0) {
     const hits: ScheduledHit[] = [];
@@ -241,8 +241,9 @@ function matchDrumType(targetDrum: string, padDrum?: DrumElement): boolean {
   const t = targetDrum.toLowerCase();
   const p = padDrum.toLowerCase();
   if (t === p) return true;
-  if (t === 'hihat' && (p === 'hihat' || p === 'hihatopen' || p === 'ride')) return true;
-  if (t === 'crash' && (p === 'crash' || p === 'ride')) return true;
+  if (t === 'hihat' && (p === 'hihat' || p === 'hihatopen' || p === 'hihatpedal' || p === 'ride')) return true;
+  if (t === 'crash' && (p === 'crash' || p === 'crash2' || p === 'ride')) return true;
+  if (t === 'ride' && (p === 'ride' || p === 'ridebell')) return true;
   if (t.includes('tom') && p.includes('tom')) return true;
   return false;
 }

@@ -30,70 +30,74 @@ export type DrumElement =
   | 'kick'
   | 'snare'
   | 'hihat'
+  | 'hihatPedal'
   | 'hihatOpen'
   | 'crash'
+  | 'crash2'
   | 'ride'
-  | 'tomLow'
-  | 'tomMid'
+  | 'rideBell'
   | 'tomHigh'
+  | 'tomLow'
   | 'percussion';
 
 export const DRUM_NAMES: Record<DrumElement, string> = {
-  kick: 'Kick',
-  snare: 'Snare',
+  kick: 'Kick Drum',
+  snare: 'Snare Drum',
   hihat: 'Closed Hi-Hat',
+  hihatPedal: 'Pedal Hi-Hat',
   hihatOpen: 'Open Hi-Hat',
-  crash: 'Crash Cymbal',
+  crash: 'Crash Cymbal 1',
+  crash2: 'Crash Cymbal 2',
   ride: 'Ride Cymbal',
-  tomLow: 'Floor / Low Tom',
-  tomMid: 'Mid Tom',
-  tomHigh: 'High Tom',
-  percussion: 'Perc / Clap',
+  rideBell: 'Ride Bell',
+  tomHigh: 'High Rack Tom',
+  tomLow: 'Floor Tom',
+  percussion: 'Hand Clap / Perc',
 };
 
 /**
  * Default 16-pad layout optimized for two-handed finger drumming on Reloop Ready:
- * - Left Hand (Deck 1 / Left Deck - Pads 1..8): Rhythm Core (Kick, Snare, Toms)
- * - Right Hand (Deck 2 / Right Deck - Pads 9..16): Timekeeping, Cymbals, Accents
+ * - Left Hand (Deck 1 / Left Deck - Pads 1..8): Rhythm Core (Kick, Snare, Toms, Percussion)
+ * - Right Hand (Deck 2 / Right Deck - Pads 9..16): Timekeeping (Hi-Hats, Cymbals, Rolls)
  */
 export const DEFAULT_DRUM_ASSIGNMENTS_16: DrumElement[] = [
   // Deck 1 (Left Hand - Rhythm Engine)
-  'kick',       // P1: Main Kick
-  'snare',      // P2: Main Snare
-  'kick',       // P3: Punch / Sub Kick
-  'snare',      // P4: Rim / Alt Snare
-  'tomLow',     // P5: Floor Tom
-  'tomMid',     // P6: Mid Tom
-  'tomHigh',    // P7: High Tom
-  'hihatOpen',  // P8: Open Hi-Hat Accent
+  'kick',       // P1: Main Fast Click Kick
+  'snare',      // P2: Main Power Snare
+  'kick',       // P3: Sub / Double Kick
+  'snare',      // P4: Street Pop-Punk Snare
+  'tomHigh',    // P5: High Rack Tom
+  'tomLow',     // P6: Low Floor Tom
+  'percussion', // P7: Hand Clap
+  'hihat',      // P8: Left-Hand Closed Hi-Hat (for rolls)
 
-  // Deck 2 (Right Hand - Timekeeping & Accents)
-  'hihat',      // P9: Closed Hi-Hat (main right-hand pulse!)
-  'hihatOpen',  // P10: Open Hi-Hat sizzle
-  'crash',      // P11: Punk Crash Cymbal
-  'ride',       // P12: Ride Cymbal
-  'snare',      // P13: Snare Accent / Roll (Right Hand)
-  'kick',       // P14: Double Kick (Right Hand)
-  'tomLow',     // P15: Secondary Tom
-  'percussion', // P16: Percussion / Handclap
+  // Deck 2 (Right Hand - Hi-Hats, Cymbals & Rolls)
+  'hihat',      // P9: Closed Hi-Hat (Primary Right-Hand Timekeeping Pulse!)
+  'hihatPedal', // P10: Pedal / Half-Open Hi-Hat
+  'hihatOpen',  // P11: Sizzling Open Hi-Hat
+  'crash',      // P12: Punk Crash Cymbal 1 (Explosive downbeat)
+  'crash2',     // P13: Punk Crash Cymbal 2
+  'ride',       // P14: Ride Cymbal (Bow)
+  'rideBell',   // P15: Ride Bell
+  'snare',      // P16: Right-Hand Roll Snare (for two-handed d-beats)
 ];
 
 export const DEFAULT_DRUM_ASSIGNMENTS_8: DrumElement[] = [
-  'kick',       // P1
-  'snare',      // P2
-  'hihat',      // P3
-  'crash',      // P4
-  'tomLow',     // P5
-  'tomHigh',    // P6
-  'ride',       // P7
-  'percussion', // P8
+  'kick',       // P1: Kick
+  'snare',      // P2: Snare
+  'hihat',      // P3: Closed Hi-Hat
+  'hihatOpen',  // P4: Open Hi-Hat
+  'crash',      // P5: Crash Cymbal
+  'ride',       // P6: Ride Cymbal
+  'tomHigh',    // P7: High Tom
+  'tomLow',     // P8: Floor Tom
 ];
 
 export const DEFAULT_DRUM_ASSIGNMENTS_4: DrumElement[] = [
-  'kick',  // P1
-  'snare', // P2
-  'hihat', // P3
-  'crash', // P4
+  'kick',  // P1: Kick
+  'snare', // P2: Snare
+  'hihat', // P3: Hi-Hat
+  'crash', // P4: Crash
 ];
 
 // Reloop Ready note definitions
@@ -119,7 +123,7 @@ export function channelForDeck(controller: ControllerType, deck: DeckId): number
   return deck === 1 ? 6 : 7;
 }
 
-const STORAGE_KEY = 'drumpad.padMapping.v7';
+const STORAGE_KEY = 'drumpad.padMapping.v8';
 
 export interface PadMapping {
   controller: ControllerType;
@@ -328,8 +332,8 @@ export function getPadForDrum(
       if (mapping.drumAssignments[8] === 'hihat') return 8;
     }
     if (normalized === 'crash') {
-      // Right hand crash (Pad 11 / index 10)
-      if (mapping.drumAssignments[10] === 'crash') return 10;
+      // Right hand crash (Pad 12 / index 11)
+      if (mapping.drumAssignments[11] === 'crash') return 11;
     }
   }
 
@@ -337,8 +341,9 @@ export function getPadForDrum(
   const idx = mapping.drumAssignments.findIndex((d) => {
     const dLower = d.toLowerCase();
     if (dLower === normalized) return true;
-    if (normalized === 'hihat' && (dLower === 'hihat' || dLower === 'hihatopen' || dLower === 'ride')) return true;
-    if (normalized === 'crash' && (dLower === 'crash' || dLower === 'ride')) return true;
+    if (normalized === 'hihat' && (dLower === 'hihat' || dLower === 'hihatopen' || dLower === 'hihatpedal' || dLower === 'ride')) return true;
+    if (normalized === 'crash' && (dLower === 'crash' || dLower === 'crash2' || dLower === 'ride')) return true;
+    if (normalized === 'ride' && (dLower === 'ride' || dLower === 'ridebell')) return true;
     if (normalized.includes('tom') && dLower.includes('tom')) return true;
     return false;
   });
@@ -347,7 +352,7 @@ export function getPadForDrum(
 
 /**
  * Returns ALL pad indices that match a drum type.
- * Allows the finger drummer to hit either pad (e.g. Left-hand Kick Pad 1 or Right-hand Kick Pad 14).
+ * Allows the finger drummer to hit either pad (e.g. Left-hand Kick Pad 1 or Right-hand Kick Pad 3).
  */
 export function getAllPadsForDrum(
   mapping: PadMapping,
@@ -360,9 +365,11 @@ export function getAllPadsForDrum(
     const dLower = mapping.drumAssignments[i]?.toLowerCase() ?? '';
     if (dLower === normalized) {
       out.push(i);
-    } else if (normalized === 'hihat' && (dLower === 'hihat' || dLower === 'hihatopen' || dLower === 'ride')) {
+    } else if (normalized === 'hihat' && (dLower === 'hihat' || dLower === 'hihatopen' || dLower === 'hihatpedal' || dLower === 'ride')) {
       out.push(i);
-    } else if (normalized === 'crash' && (dLower === 'crash' || dLower === 'ride')) {
+    } else if (normalized === 'crash' && (dLower === 'crash' || dLower === 'crash2' || dLower === 'ride')) {
+      out.push(i);
+    } else if (normalized === 'ride' && (dLower === 'ride' || dLower === 'ridebell')) {
       out.push(i);
     } else if (normalized.includes('tom') && dLower.includes('tom')) {
       out.push(i);

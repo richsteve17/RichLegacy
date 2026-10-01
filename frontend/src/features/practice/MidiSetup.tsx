@@ -10,9 +10,9 @@ import {
   type DrumElement,
   type PadMapping,
 } from '../../lib/midi/padMapping';
+import { drumSampler } from '../../lib/audio/drumSampler';
 import { runRainbowChase } from '../../lib/midi/reloopLed';
 import type { UseWebMidiResult } from '../../lib/midi/useWebMidi';
-
 
 interface Props {
   midi: UseWebMidiResult;
@@ -24,12 +24,14 @@ const AVAILABLE_DRUMS: DrumElement[] = [
   'kick',
   'snare',
   'hihat',
+  'hihatPedal',
   'hihatOpen',
   'crash',
+  'crash2',
   'ride',
-  'tomLow',
-  'tomMid',
+  'rideBell',
   'tomHigh',
+  'tomLow',
   'percussion',
 ];
 
@@ -142,6 +144,8 @@ export default function MidiSetup({ midi, mapping, setMapping }: Props) {
     const next = setDrumForPad(mapping, padIdx, drum);
     setMapping(next);
     saveMapping(next);
+    // Instant audio feedback: let the user immediately hear what they selected!
+    drumSampler.playElement(drum, 110);
   };
 
   const handleTestLeds = () => {

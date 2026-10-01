@@ -131,9 +131,9 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
       const pad = noteToPad(mapping, e.channel, e.note);
       if (pad === null) return;
 
-      // Play authentic punchy drum sample immediately with zero delay
+      // Play authentic punchy drum sample matching the pad's drum assignment
       if (drumAudioEnabled) {
-        drumSampler.playPad(pad, e.velocity);
+        drumSampler.playPad(pad, e.velocity, mapping.drumAssignments[pad]);
       }
 
       const audio = audioRef.current;
@@ -225,7 +225,7 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
 
   function handlePadTap(pad: number) {
     if (drumAudioEnabled) {
-      drumSampler.playPad(pad, 110);
+      drumSampler.playPad(pad, 110, mapping.drumAssignments[pad]);
     }
     flashPad(pad, 'tap');
   }

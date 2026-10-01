@@ -15,10 +15,10 @@ function getDrumClass(drumName: string): string {
   const d = drumName.toLowerCase();
   if (d.includes('kick')) return 'padgrid__pad--kick';
   if (d.includes('snare')) return 'padgrid__pad--snare';
-  if (d.includes('closed') || d.includes('hi-hat') || d === 'hihat') return 'padgrid__pad--hat';
+  if (d.includes('closed') || d.includes('pedal') || (d.includes('hat') && !d.includes('open')) || d === 'hihat') return 'padgrid__pad--hat';
   if (d.includes('open')) return 'padgrid__pad--hat-open';
   if (d.includes('crash')) return 'padgrid__pad--crash';
-  if (d.includes('ride')) return 'padgrid__pad--ride';
+  if (d.includes('ride') || d.includes('bell')) return 'padgrid__pad--ride';
   if (d.includes('tom')) return 'padgrid__pad--tom';
   return 'padgrid__pad--perc';
 }
