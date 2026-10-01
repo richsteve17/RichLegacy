@@ -30,6 +30,16 @@ interface Props {
   onChangeSong?: () => void;
 }
 
+const SPEED_PRESETS = [
+  { value: 0.5, label: '0.50× (Half)' },
+  { value: 0.65, label: '0.65×' },
+  { value: 0.75, label: '0.75× (Slow)' },
+  { value: 0.85, label: '0.85× (Cruising)' },
+  { value: 1.0, label: '1.00× (Normal)' },
+  { value: 1.15, label: '1.15× (Fast)' },
+  { value: 1.25, label: '1.25× (Turbo)' },
+];
+
 export default function PracticePanel({ upload, analysis, onChangeSong }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const midi = useWebMidi();
@@ -40,6 +50,17 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
   const [testingLeds, setTestingLeds] = useState(false);
   const [drumAudioEnabled, setDrumAudioEnabled] = useState(true);
   const [drumVolume, setDrumVolume] = useState(0.85);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+
+  // Synchronize audio playback speed (tempo training) & preserve pitch
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed;
+      if ('preservesPitch' in audioRef.current) {
+        audioRef.current.preservesPitch = true;
+      }
+    }
+  }, [playbackSpeed, upload.file_id]);
 
   // Preload authentic 16-pad drum kit audio samples
   useEffect(() => {
@@ -251,6 +272,8 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
   const kickCount = analysis.pattern.kick_count ?? 0;
   const snareCount = analysis.pattern.snare_count ?? 0;
   const hihatCount = analysis.pattern.hihat_count ?? 0;
+  const rawBpm = analysis.tempo?.bpm ? Math.round(analysis.tempo.bpm) : 0;
+  const effectiveBpm = rawBpm > 0 ? Math.round(rawBpm * playbackSpeed) : null;
 
   return (
     <section className="card practice-panel">
@@ -374,6 +397,85 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
         </div>
       )}
 
+      {/* Speed Gauge & Tempo Trainer */}
+      <div className="speed-gauge-panel">
+        <div className="speed-gauge-header">
+          <div className="speed-gauge-title">
+            <span className="speed-gauge-icon">🎚️</span>
+            <strong>Practice Speed Gauge:</strong>
+            <span
+              className={`speed-badge ${
+                playbackSpeed < 1
+                  ? 'speed-badge--slow'
+                  : playbackSpeed > 1
+                    ? 'speed-badge--fast'
+                    : 'speed-badge--normal'
+              }`}
+            >
+              {playbackSpeed.toFixed(2)}×
+            </span>
+          </div>
+
+          {rawBpm > 0 && effectiveBpm && (
+            <div className="speed-gauge-bpm">
+              <span className="muted">Song:</span>
+              <strong>{rawBpm} BPM</strong>
+              <span className="speed-arrow">➔</span>
+              <span className="speed-effective-label">Practice:</span>
+              <strong className="speed-effective-bpm">{effectiveBpm} BPM</strong>
+              <span
+                className={`badge ${
+                  playbackSpeed < 1
+                    ? 'badge--slow-tempo'
+                    : playbackSpeed > 1
+                      ? 'badge--fast-tempo'
+                      : 'badge--cached'
+                }`}
+              >
+                {playbackSpeed < 1
+                  ? `${Math.round((1 - playbackSpeed) * 100)}% Slower`
+                  : playbackSpeed > 1
+                    ? `+${Math.round((playbackSpeed - 1) * 100)}% Faster`
+                    : 'Original Tempo'}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="speed-gauge-slider-row">
+          <span className="speed-limit-label">0.50× (Half)</span>
+          <input
+            type="range"
+            min={0.5}
+            max={1.25}
+            step={0.05}
+            value={playbackSpeed}
+            onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
+            className="speed-range-slider"
+            aria-label="Practice playback speed slider"
+          />
+          <span className="speed-limit-label">1.25× (Turbo)</span>
+        </div>
+
+        <div className="speed-preset-buttons">
+          <span className="speed-preset-label">Speed Presets:</span>
+          {SPEED_PRESETS.map((preset) => (
+            <button
+              key={preset.value}
+              type="button"
+              className={`btn-speed-preset ${
+                Math.abs(playbackSpeed - preset.value) < 0.01
+                  ? 'btn-speed-preset--active'
+                  : ''
+              }`}
+              onClick={() => setPlaybackSpeed(preset.value)}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <audio
         ref={audioRef}
         src={fileUrl(upload.file_id)}
@@ -381,7 +483,17 @@ export default function PracticePanel({ upload, analysis, onChangeSong }: Props)
         playsInline
         preload="metadata"
         className="player"
-        onPlay={() => setPlaying(true)}
+        onPlay={() => {
+          if (audioRef.current) {
+            audioRef.current.playbackRate = playbackSpeed;
+          }
+          setPlaying(true);
+        }}
+        onLoadedMetadata={() => {
+          if (audioRef.current) {
+            audioRef.current.playbackRate = playbackSpeed;
+          }
+        }}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
       />
