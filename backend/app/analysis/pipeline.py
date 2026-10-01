@@ -5,6 +5,7 @@ from pathlib import Path
 
 from ..config import settings
 from ..schemas import AnalysisResponse
+from .drums import classify_drums
 from .kit import suggest_kits
 from .loader import load_audio
 from .onset import detect_onsets
@@ -18,7 +19,10 @@ def analyze_file(file_id: str, path: Path) -> AnalysisResponse:
 
     tempo = estimate_tempo(y, sr)
     onsets = detect_onsets(y, sr)
-    pattern = summarize_pattern(y, sr, tempo, onsets)
+    drum_hits, k_cnt, s_cnt, h_cnt = classify_drums(y, sr, onsets)
+    pattern = summarize_pattern(
+        y, sr, tempo, onsets, kick_count=k_cnt, snare_count=s_cnt, hihat_count=h_cnt
+    )
     kits = suggest_kits(tempo, pattern)
 
     return AnalysisResponse(
@@ -27,6 +31,7 @@ def analyze_file(file_id: str, path: Path) -> AnalysisResponse:
         sample_rate=sr,
         tempo=tempo,
         onsets=onsets,
+        drum_hits=drum_hits,
         pattern=pattern,
         kit_suggestions=kits,
     )

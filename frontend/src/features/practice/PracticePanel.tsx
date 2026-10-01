@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fileUrl } from '../../lib/api';
 import { loadMapping, noteToPad, type PadMapping } from '../../lib/midi/padMapping';
+import {
+  clearAllReloopLeds,
+  runRainbowChase,
+  sendReloopPadLed,
+  type ReloopLedColor,
+} from '../../lib/midi/reloopLed';
 import { useWebMidi } from '../../lib/midi/useWebMidi';
 import type { AnalysisResult, UploadResult } from '../../lib/types';
 import {
@@ -20,26 +26,27 @@ import PadGrid from './PadGrid';
 interface Props {
   upload: UploadResult;
   analysis: AnalysisResult;
+  onChangeSong?: () => void;
 }
 
-const FEEDBACK_MS = 130;
-
-export default function PracticePanel({ upload, analysis }: Props) {
+export default function PracticePanel({ upload, analysis, onChangeSong }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const midi = useWebMidi();
 
   const [mapping, setMapping] = useState<PadMapping>(() => loadMapping());
-  const [mode, setMode] = useState<PatternMode>('rotate4');
+  const [mode, setMode] = useState<PatternMode>('fullGroove');
+  const [ledFeedback, setLedFeedback] = useState(true);
+  const [testingLeds, setTestingLeds] = useState(false);
 
   // Derived: scheduled hit list. Memoized; we copy into a mutable ref
-  // so MIDI/rAF handlers can update statuses without triggering React
-  // updates on every change.
+  // so MIDI/rAF handlers can update statuses without triggering React updates.
   const initialPattern = useMemo(
-    () => generatePattern(analysis, mode),
-    [analysis, mode],
+    () => generatePattern(analysis, mode, mapping),
+    [analysis, mode, mapping],
   );
   const hitsRef = useRef<ScheduledHit[]>(initialPattern);
   const [tick, setTick] = useState(0); // bump to force re-render of derived values
+  const currentCuePadsRef = useRef<number[]>([]);
 
   useEffect(() => {
     hitsRef.current = resetHits(initialPattern);
@@ -48,8 +55,46 @@ export default function PracticePanel({ upload, analysis }: Props) {
 
   const [activePad, setActivePad] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<'hit' | 'wrong' | 'tap' | null>(null);
-  const [nextPad, setNextPad] = useState<number | null>(null);
+  const [nextPads, setNextPads] = useState<number[]>([]);
   const [playing, setPlaying] = useState(false);
+
+  // ----- Synchronize hardware pad LEDs for upcoming cue pad(s) -----
+  useEffect(() => {
+    if (!mapping.controller.startsWith('reloop') || !ledFeedback) return;
+    const prevPads = currentCuePadsRef.current;
+
+    // Turn off pads no longer queued
+    for (const p of prevPads) {
+      if (!nextPads.includes(p)) {
+        sendReloopPadLed(midi.sendMidi, p, 'off', false, mapping.controller, mapping.deckMode);
+      }
+    }
+
+    // Light up newly queued pads in bright amber (supports simultaneous multi-pad hits!)
+    if (playing) {
+      for (const p of nextPads) {
+        sendReloopPadLed(midi.sendMidi, p, 'amber', true, mapping.controller, mapping.deckMode);
+      }
+    }
+    currentCuePadsRef.current = nextPads;
+  }, [nextPads, playing, mapping.controller, mapping.deckMode, ledFeedback, midi.sendMidi]);
+
+  // Turn off all LEDs when paused or stopped
+  useEffect(() => {
+    if (!playing && mapping.controller.startsWith('reloop')) {
+      clearAllReloopLeds(midi.sendMidi, mapping.padCount, mapping.controller);
+      currentCuePadsRef.current = [];
+    }
+  }, [playing, mapping.controller, mapping.padCount, midi.sendMidi]);
+
+  // Turn off all LEDs on unmount
+  useEffect(() => {
+    return () => {
+      if (mapping.controller.startsWith('reloop')) {
+        clearAllReloopLeds(midi.sendMidi, mapping.padCount, mapping.controller);
+      }
+    };
+  }, [mapping.controller, mapping.padCount, midi.sendMidi]);
 
   // ----- MIDI input handler --------------------------------------------
   useEffect(() => {
@@ -61,12 +106,12 @@ export default function PracticePanel({ upload, analysis }: Props) {
       const t = audio?.currentTime ?? 0;
 
       if (!audio || audio.paused) {
-        // Free-play: just light up the pad.
+        // Free-play: light up on-screen pad and hardware LED
         flashPad(pad, 'tap');
         return;
       }
 
-      const result = attemptHit(hitsRef.current, pad, t);
+      const result = attemptHit(hitsRef.current, pad, t, mapping);
       if (result.result === 'hit') {
         const h = hitsRef.current[result.index];
         h.status = 'hit';
@@ -79,18 +124,18 @@ export default function PracticePanel({ upload, analysis }: Props) {
         h.actualPad = pad;
         flashPad(pad, 'wrong');
       } else {
-        // No nearby target — purely informational.
+        // Extra tap
         flashPad(pad, 'tap');
       }
       setTick((tk) => tk + 1);
     });
     return off;
-  }, [midi, mapping]);
+  }, [midi, mapping, ledFeedback]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ----- audio sync loop -----------------------------------------------
   useEffect(() => {
     let raf = 0;
-    let lastNext: number | null = null;
+    let lastPadsKey = '';
     const loop = () => {
       const audio = audioRef.current;
       if (audio && !audio.paused) {
@@ -103,14 +148,15 @@ export default function PracticePanel({ upload, analysis }: Props) {
         }
 
         const cue = nextPadCue(hitsRef.current, t);
-        const cuePad = cue ? cue.pad : null;
-        if (cuePad !== lastNext) {
-          lastNext = cuePad;
-          setNextPad(cuePad);
+        const pads = cue ? cue.pads : [];
+        const key = pads.join(',');
+        if (key !== lastPadsKey) {
+          lastPadsKey = key;
+          setNextPads(pads);
         }
-      } else if (lastNext !== null) {
-        lastNext = null;
-        setNextPad(null);
+      } else if (lastPadsKey !== '') {
+        lastPadsKey = '';
+        setNextPads([]);
       }
       raf = requestAnimationFrame(loop);
     };
@@ -121,46 +167,157 @@ export default function PracticePanel({ upload, analysis }: Props) {
   function flashPad(pad: number, kind: 'hit' | 'wrong' | 'tap') {
     setActivePad(pad);
     setFeedback(kind);
+
+    // Hardware LED feedback: Green for hit, Red for wrong, Cyan for free tap
+    if (mapping.controller.startsWith('reloop') && ledFeedback) {
+      const ledColor: ReloopLedColor =
+        kind === 'hit' ? 'green' : kind === 'wrong' ? 'red' : 'cyan';
+      sendReloopPadLed(midi.sendMidi, pad, ledColor, true, mapping.controller, mapping.deckMode);
+    }
+
     window.setTimeout(() => {
       setActivePad((p) => (p === pad ? null : p));
-      setFeedback(null);
-    }, FEEDBACK_MS);
+      setFeedback((f) => (f === kind ? null : f));
+      // If currently cued, restore cue amber color; else turn off
+      if (mapping.controller.startsWith('reloop') && ledFeedback) {
+        if (playing && currentCuePadsRef.current.includes(pad)) {
+          sendReloopPadLed(midi.sendMidi, pad, 'amber', true, mapping.controller, mapping.deckMode);
+        } else {
+          sendReloopPadLed(midi.sendMidi, pad, 'off', false, mapping.controller, mapping.deckMode);
+        }
+      }
+    }, 140);
   }
 
   function reset() {
     hitsRef.current = resetHits(initialPattern);
+    setActivePad(null);
+    setFeedback(null);
+    setNextPads([]);
     setTick((t) => t + 1);
-    if (audioRef.current) audioRef.current.currentTime = 0;
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.pause();
+      setPlaying(false);
+    }
+    if (mapping.controller.startsWith('reloop')) {
+      clearAllReloopLeds(midi.sendMidi, mapping.padCount, mapping.controller);
+      currentCuePadsRef.current = [];
+    }
   }
 
-  // Score is recomputed on every tick; it's cheap (one pass over hits).
+  const handleTestLeds = () => {
+    setTestingLeds(true);
+    const stop = runRainbowChase(midi.sendMidi, mapping.padCount, mapping.controller);
+    setTimeout(() => {
+      stop();
+      setTestingLeds(false);
+    }, 2200);
+  };
+
+  // Score is recomputed on every tick
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const score = useMemo(() => scoreOf(hitsRef.current), [tick]);
 
+  const controllerTitle =
+    mapping.controller === 'reloop-ready'
+      ? 'Reloop Ready'
+      : mapping.controller === 'reloop-buddy'
+        ? 'Reloop Buddy'
+        : mapping.controller === 'hercules'
+          ? 'Hercules'
+          : 'MIDI';
+
+  const kickCount = analysis.pattern.kick_count ?? 0;
+  const snareCount = analysis.pattern.snare_count ?? 0;
+  const hihatCount = analysis.pattern.hihat_count ?? 0;
+
   return (
-    <section className="card">
-      <h2>4. Practice with your Hercules pad</h2>
-      <p className="muted">
-        Hit the highlighted pad on your hardware as it lights up. Hit
-        window: ±{HIT_WINDOW_MS} ms.
-      </p>
+    <section className="card practice-panel">
+      <div className="practice-header">
+        <div>
+          <h2>🥁 Practice: {upload.filename}</h2>
+          <p className="muted">
+            Hit the pads on your {controllerTitle} as they illuminate. Timing tolerance: ±{HIT_WINDOW_MS} ms.
+          </p>
+        </div>
+        {onChangeSong && (
+          <button type="button" className="btn btn--secondary" onClick={onChangeSong}>
+            🎵 Change Song / DJ Playlists
+          </button>
+        )}
+      </div>
+
+      {kickCount > 0 && (
+        <div className="drum-transcription-badge">
+          <span>🎯 Real Transcribed Drums:</span>
+          <strong>{kickCount} kicks</strong>,
+          <strong>{snareCount} snares</strong>,
+          <strong>{hihatCount} cymbals/hi-hats</strong>
+          {mapping.padCount === 16 && (
+            <span className="badge badge--dual">✨ 2-Handed Dual Deck Active</span>
+          )}
+        </div>
+      )}
 
       <MidiSetup midi={midi} mapping={mapping} setMapping={setMapping} />
 
-      <div className="row">
+      <div className="row mode-row">
         <label>
-          Pattern
+          Practice Mode
           <select
             value={mode}
             onChange={(e) => setMode(e.target.value as PatternMode)}
           >
-            <option value="kick">All on pad 1 (warm-up)</option>
-            <option value="kickSnare">Pad 1 / 2 alternating</option>
-            <option value="rotate3">Rotate pads 1–3</option>
-            <option value="rotate4">Rotate all 4 pads</option>
+            <option value="fullGroove">
+              🔥 Full Transcribed Drum Kit (Both Decks — Kick, Snare, Hi-Hats, Cymbals)
+            </option>
+            <option value="kickSnare">
+              🥁 Kick & Snare (2-Pad Groove — Core Practice)
+            </option>
+            <option value="hatOnly">
+              ⚡ Hi-Hat & Cymbals Only (Timekeeping Pulse)
+            </option>
+            <option value="kickOnly">
+              Kick Drum Only (Stamina & Downbeats)
+            </option>
+            <option value="snareOnly">
+              Snare Drum Only (Backbeat Precision)
+            </option>
+            <option value="rotationalWarmup">
+              Warmup Agility Drill (4-Pad Round Robin)
+            </option>
           </select>
         </label>
       </div>
+
+      {mapping.controller.startsWith('reloop') && (
+        <div className="led-feedback-bar">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={ledFeedback}
+              onChange={(e) => {
+                setLedFeedback(e.target.checked);
+                if (!e.target.checked) {
+                  clearAllReloopLeds(midi.sendMidi, mapping.padCount, mapping.controller);
+                }
+              }}
+            />
+            <span>
+              💡 <strong>{controllerTitle}</strong> Hardware Pad LED Sync (lights up physical pads in real-time!)
+            </span>
+          </label>
+          <button
+            type="button"
+            className="btn btn--small"
+            onClick={handleTestLeds}
+            disabled={testingLeds}
+          >
+            {testingLeds ? '✨ Rainbow Chase Running…' : '🌈 Test Hardware LEDs'}
+          </button>
+        </div>
+      )}
 
       <audio
         ref={audioRef}
@@ -177,7 +334,7 @@ export default function PracticePanel({ upload, analysis }: Props) {
       <PadGrid
         labels={mapping.labels}
         activePad={activePad}
-        nextPad={playing ? nextPad : null}
+        nextPads={playing ? nextPads : []}
         feedback={feedback}
         onPadTap={(pad) => flashPad(pad, 'tap')}
       />
@@ -193,9 +350,11 @@ export default function PracticePanel({ upload, analysis }: Props) {
         />
       </div>
 
-      <button type="button" className="btn" onClick={reset}>
-        Reset session
-      </button>
+      <div className="row">
+        <button type="button" className="btn" onClick={reset}>
+          Reset session
+        </button>
+      </div>
     </section>
   );
 }

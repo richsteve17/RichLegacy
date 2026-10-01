@@ -10,4 +10,8 @@ pydantic-settings>=2.2
 numpy>=1.26
 scipy>=1.11
 soundfile>=0.12        # libsndfile bundled wheels: wav / flac / ogg / aiff
-audioread>=3.0         # pure Python; uses macOS CoreAudio for mp3 / m4a / aac
+audioread>=3.0         # pure Python; uses Windows Media / macOS CoreAudio for mp3 / m4a / aac
+mido>=1.3              # MIDI diagnostics
+httpx>=0.27
+pytest>=8.0
+

@@ -1,47 +1,23 @@
 # Diagnostic scripts
 
-Small, copy-paste-friendly tools that don't run as part of the app — used
-to verify hardware and OS plumbing while we build the MIDI features.
+Small utilities used to verify hardware and OS MIDI plumbing.
 
-## `list-midi.sh` — confirm macOS sees your Hercules pad
+## `list-midi.py` — MIDI port detector & monitor
 
-Zero install. Uses `system_profiler` (built into macOS).
+Uses `mido` + `python-rtmidi` against the OS MIDI subsystem — the exact same path the browser's Web MIDI API uses.
 
-```bash
-./scripts/list-midi.sh
-```
-
-What you'll see if it works:
-
-```
-== macOS MIDI devices ==
-[ devices ]
-    ✓ DJControl Inpulse 200   ← looks like your pad
-
-✓ Hercules device detected by CoreMIDI.
-```
-
-What you'll see if it doesn't:
-
-```
-✗ No Hercules device found.
-  Checks to run: …
-```
-
-## `list-midi.py` — separate input vs output ports (richer view)
-
-Uses `mido` + `python-rtmidi` against CoreMIDI — the same path the
-browser's Web MIDI API uses, so this is the most accurate preview of
-what the React app will be able to listen to.
-
-One-time install into the existing backend venv:
+Install into the backend virtualenv:
 
 ```bash
+# Windows:
+.\backend\.venv\Scripts\pip install mido python-rtmidi
+
+# macOS / Linux:
 source backend/.venv/bin/activate
 pip install mido python-rtmidi
 ```
 
-Then:
+### Detect connected controllers
 
 ```bash
 python scripts/list-midi.py
@@ -51,21 +27,27 @@ Sample output:
 
 ```
 == MIDI inputs ==
-  ['DJControl Inpulse 200'] ← Hercules
+  ['Reloop Ready In 0'] <- Reloop
 
 == MIDI outputs ==
-  ['DJControl Inpulse 200'] ← Hercules
+  ['Microsoft GS Wavetable Synth 0']
+  ['Reloop Ready Out 1'] <- Reloop
 
-✓ Hercules device available to CoreMIDI / Web MIDI.
+[OK] Reloop controller detected and ready for Web MIDI!
 ```
 
-## Triage if the pad doesn't appear
+### Monitor live pad taps
 
-1. Plug it in via USB (not just paired over Bluetooth audio).
-2. Open `Audio MIDI Setup.app` → `Window` → `Show MIDI Studio`. If it's
-   greyed out there, the OS isn't enumerating it as MIDI — try a
-   different cable/port.
-3. Quit any DJ software (DJUCED, Serato, rekordbox). Some Hercules
-   controllers grab exclusive access and disappear from generic MIDI
-   enumeration while that's running.
-4. Re-run `./scripts/list-midi.sh`.
+To see note numbers, channels, and velocity live in your terminal when hitting your pads:
+
+```bash
+python scripts/list-midi.py --monitor
+```
+
+## `list-midi.sh` — macOS CoreMIDI inspector
+
+Zero install for macOS. Uses `system_profiler` (built into macOS).
+
+```bash
+./scripts/list-midi.sh
+```

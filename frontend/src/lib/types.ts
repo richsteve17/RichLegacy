@@ -20,6 +20,9 @@ export interface PatternSummary {
   time_signature: string;
   density: number;
   notes: string[];
+  kick_count?: number;
+  snare_count?: number;
+  hihat_count?: number;
 }
 
 export interface KitSuggestion {
@@ -28,12 +31,53 @@ export interface KitSuggestion {
   score: number;
 }
 
+export interface DrumHit {
+  time: number;
+  drums: string[];
+  primary: string;
+  intensity: number;
+}
+
 export interface AnalysisResult {
   file_id: string;
   duration_sec: number;
   sample_rate: number;
   tempo: TempoInfo;
   onsets: OnsetInfo;
+  drum_hits?: DrumHit[];
   pattern: PatternSummary;
   kit_suggestions: KitSuggestion[];
 }
+
+export interface SongbookTrack {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  bpm: number;
+  duration_sec: number;
+  genre: string;
+  file_path: string;
+  filename: string;
+  is_cached: boolean;
+}
+
+export interface SongbookPlaylist {
+  id: string;
+  name: string;
+  track_count: number;
+  description: string;
+}
+
+export interface SongbookPlaylistDetail {
+  id: string;
+  name: string;
+  track_count: number;
+  tracks: SongbookTrack[];
+}
+
+export interface SongbookLoadResponse {
+  upload: UploadResult;
+  analysis: AnalysisResult;
+}
+

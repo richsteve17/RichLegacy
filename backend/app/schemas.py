@@ -26,6 +26,9 @@ class PatternSummary(BaseModel):
     time_signature: str = "4/4"
     density: float = 0.0  # onsets per second
     notes: list[str] = Field(default_factory=list)
+    kick_count: int = 0
+    snare_count: int = 0
+    hihat_count: int = 0
 
 
 class KitSuggestion(BaseModel):
@@ -34,11 +37,61 @@ class KitSuggestion(BaseModel):
     score: float
 
 
+class DrumHit(BaseModel):
+    time: float
+    drums: list[str] = Field(
+        default_factory=list,
+        description="Drums active on this hit: 'kick', 'snare', 'hihat', 'crash', etc.",
+    )
+    primary: str = "kick"
+    intensity: float = 1.0
+
+
 class AnalysisResponse(BaseModel):
     file_id: str
     duration_sec: float
     sample_rate: int
     tempo: TempoInfo
     onsets: OnsetInfo
+    drum_hits: list[DrumHit] = Field(default_factory=list)
     pattern: PatternSummary
     kit_suggestions: list[KitSuggestion]
+
+
+class SongbookTrack(BaseModel):
+    id: str
+    title: str
+    artist: str
+    album: str = ""
+    bpm: float = 0.0
+    duration_sec: float = 0.0
+    genre: str = ""
+    file_path: str
+    filename: str
+    is_cached: bool = False
+
+
+class SongbookPlaylist(BaseModel):
+    id: str
+    name: str
+    track_count: int
+    description: str = ""
+
+
+class SongbookPlaylistDetail(BaseModel):
+    id: str
+    name: str
+    track_count: int
+    tracks: list[SongbookTrack] = Field(default_factory=list)
+
+
+class SongbookLoadRequest(BaseModel):
+    file_path: str
+    title: str = ""
+    artist: str = ""
+
+
+class SongbookLoadResponse(BaseModel):
+    upload: UploadResponse
+    analysis: AnalysisResponse
+

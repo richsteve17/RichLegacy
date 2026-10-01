@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import analysis, uploads
+from .routers import analysis, songbook, uploads
 
 
 def create_app() -> FastAPI:
@@ -41,6 +41,8 @@ def create_app() -> FastAPI:
 
     app.include_router(uploads.router, prefix="/api", tags=["uploads"])
     app.include_router(analysis.router, prefix="/api", tags=["analysis"])
+    app.include_router(songbook.router, prefix="/api", tags=["songbook"])
+
 
     @app.get("/health", tags=["meta"])
     def health() -> dict:

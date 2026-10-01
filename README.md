@@ -1,113 +1,70 @@
 # Drum Pad Learning App
 
-A local-first drum learning web app. Upload your own audio files, analyze
-drum patterns, get kit suggestions, and practice along in your browser
-(works on iPhone Safari).
+A local-first drum learning and finger-drumming web app. Seamlessly browse your DJ playlists, analyze drum transients into authentic Kick, Snare, and Hi-Hat parts, and practice two-handed finger drumming with real-time RGB LED illumination on the **Reloop Ready** controller.
 
-## Architecture
+## Features
 
+- **Reloop Ready 16-Pad Dual-Deck Architecture**:
+  - Full support for both decks simultaneously (Deck 1 Left Hand + Deck 2 Right Hand).
+  - Deck 1 (Left): MIDI Ch 5 (status `0x94`), Notes 20–27 for core rhythm (Kick & Snare).
+  - Deck 2 (Right): MIDI Ch 6 (status `0x95`), Notes 20–27 for timekeeping (Hi-Hat pulse, Cymbals, Fills).
+  - Two-handed dexterity: both hands play together with simultaneous multi-pad hits (Kick + Hat, Snare + Hat).
+  - Forgiving drum matching: hitting alternate pads assigned to the same drum element (e.g. right-hand snare Pad 13) registers as a valid hit!
+- **Real-Time Hardware RGB LED Lighting**:
+  - Pads on the Reloop Ready physically illuminate ahead of each beat in bright Amber.
+  - Flashes Green on accurate hits, Red on mistakes, and Cyan on free taps.
+  - Built-in "🌈 Test Hardware LEDs" rainbow chase test in the UI.
+- **DJ Playlists Songbook**:
+  - Direct integration with `Music/DJ Playlists` (over 800 tracks across 13 playlists, including *We Lose Every Week (Sugo Mix)*, *Emo Night Sugo*, *Cherry Bomb*, etc.).
+  - 1-click "Practice" action automatically loads audio, transcribes drum parts, and caches results for instant future loads (<5ms).
+  - Search by artist, song title, or genre.
+- **Authentic Drum Transcription (No Pad Cycling)**:
+  - Sub-band transient analysis detects real acoustic drum hits (Kick thump 30–180 Hz, Snare crack 200–2200 Hz, Hi-Hat/Cymbals 2500–11000 Hz).
+  - Eliminates sequential pad cycling (1 through 8) completely.
+- **Modular Hardware Presets**:
+  - Reloop Ready (16 Pads — Dual Deck Default)
+  - Reloop Ready (Single Deck 8 Pads)
+  - Reloop Buddy (8 Pads)
+  - Hercules DJControl Mix (4 Pads)
+  - Custom / Generic MIDI Controllers with interactive MIDI Learn / Calibration.
+
+---
+
+## Quick Start (One Command)
+
+### On Windows (PowerShell):
+
+```powershell
+.\startup.ps1
 ```
-project/
-├── backend/      FastAPI service for audio analysis
-├── frontend/     React + Vite + TypeScript SPA
-└── Makefile      Convenience commands
-```
 
-- **No streaming, no copyright issues**: audio files stay on your machine.
-- **iOS-friendly**: mobile-first UI; HTML5 `<audio>` for playback.
-- **Modular**: backend analysis modules and frontend feature folders are
-  ready to grow (onset detection, tempo, beat tracking, pattern matching,
-  kit recommendation, etc.).
-
-## Quick start (one command)
-
-The fastest way to get going on a Mac:
+### On macOS / Linux:
 
 ```bash
 ./startup.sh
 ```
 
-That single script will:
-
-1. Verify `python3`, `node`, and `npm` are installed.
-2. Create `backend/.venv` and install Python deps if missing.
-3. Run `npm install` in `frontend/` if missing.
+That script will:
+1. Verify Python, Node, and npm are installed.
+2. Initialize `backend/.venv` and install Python dependencies.
+3. Install frontend dependencies in `frontend/`.
 4. Start the FastAPI backend on `http://localhost:8000`.
 5. Start the Vite frontend on `http://localhost:5173`.
-6. Print your Mac's LAN IP so you can open the app on your iPhone
-   (same Wi-Fi).
 
-Press **Ctrl-C** once to stop both servers cleanly.
-
-Useful flags:
-
-```bash
-./startup.sh --reset   # wipe .venv + node_modules and reinstall, then run
-./startup.sh --help    # show usage
-```
-
-The first run installs everything (≈1–2 minutes). Subsequent runs are
-near-instant.
+Press **Ctrl-C** (or Enter in PowerShell) to stop both servers cleanly.
 
 ---
 
-## Manual quick start
+## Testing & Verification
 
-If you'd rather run each piece yourself:
-
-### 1. Backend
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+Run backend test suite:
+```powershell
+.\backend\.venv\Scripts\python.exe -m pytest backend\tests\test_backend.py -v
 ```
 
-> **macOS note** — the backend uses `numpy`, `scipy`, `soundfile`, and
-> `audioread` only. All ship pre-built wheels for every supported Python
-> on Intel and Apple Silicon, so no LLVM / Rust / Xcode toolchain is
-> needed. (Earlier versions used `librosa`, which pulled in
-> `numba` → `llvmlite` and required compilation. That's gone.)
->
-> **Audio format support** out of the box:
-> - WAV / FLAC / OGG / AIFF — handled by `soundfile` (libsndfile)
-> - MP3 / M4A / AAC — handled by `audioread` via macOS CoreAudio
->
-> Nothing extra to install for any of those formats.
-
-### 2. Frontend
-
-```bash
+Run frontend build & linting:
+```powershell
 cd frontend
-npm install
-npm run dev -- --host
+npm run lint
+npm run build
 ```
-
-Vite will print a `Network:` URL like `http://192.168.x.x:5173`.
-Open that URL on your iPhone (same Wi-Fi as your Mac) to test.
-
-### Convenience
-
-```bash
-make install   # installs both
-make dev       # runs both (requires `tmux` or two terminals)
-```
-
-## Testing on iPhone
-
-1. Make sure your Mac and iPhone are on the same Wi-Fi network.
-2. Run `npm run dev -- --host` so Vite binds to `0.0.0.0`.
-3. Visit the printed `Network:` URL in mobile Safari.
-4. iOS Safari blocks autoplay — playback must be triggered by a tap
-   (the UI is built around this).
-
-## Roadmap (modular extension points)
-
-- `backend/app/analysis/onset.py` — onset/transient detection
-- `backend/app/analysis/tempo.py` — BPM + beat grid
-- `backend/app/analysis/pattern.py` — drum pattern segmentation
-- `backend/app/analysis/kit.py` — kit recommendation heuristics
-- `frontend/src/features/practice/` — practice mode (metronome, scoring)
-- `frontend/src/features/pads/` — drum pad UI

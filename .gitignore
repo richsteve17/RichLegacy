@@ -35,6 +35,10 @@ yarn-error.log*
 backend/uploads/
 backend/cache/
 backend/.data/
+uploads/
+cache/
+*.tsbuildinfo
 
 # Runtime logs from startup.sh
 logs/
+

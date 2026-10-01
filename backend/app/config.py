@@ -20,9 +20,16 @@ class Settings(BaseSettings):
     # When True, allow any LAN origin (handy for iPhone-on-same-wifi testing)
     cors_allow_lan: bool = True
 
+    # Music & Songbook
+    dj_playlists_dir: Path = Path(r"C:\Users\richs\Music\DJ Playlists")
+    downloads_dir: Path = Path(r"C:\Users\richs\Downloads")
+    cache_dir: Path = Path("cache")
+
     # Audio
     target_sample_rate: int = 22050
 
 
 settings = Settings()
 settings.upload_dir.mkdir(parents=True, exist_ok=True)
+settings.cache_dir.mkdir(parents=True, exist_ok=True)
+
